@@ -140,7 +140,7 @@ export async function runPlan(ws: string, coordinatorTaskId: string) {
                 ? await registerAssetTx(tx, WORKER, ws, fixturePng(`${child.id}:${i}`), { origin: "generated", provider: "fixture", params: { brief: drafts[i].imageBrief }, rightsAttested: true })
                 : null;
               const r = await createPostTx(tx, WORKER, ws, {
-                campaignId: task.campaign_id, concept: p.concept,
+                campaignId: task.campaign_id, concept: p.concept, proposedLocalTime: p.localTime,
                 variants: [{ platform: p.platform, caption: drafts[i].caption, altText: drafts[i].altText, assetId: img?.assetId ?? null, sourceIds: research?.sourceIds ?? [], aiGenerated: true }],
               });
               created.push(...r.variantIds);

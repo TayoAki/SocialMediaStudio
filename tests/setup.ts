@@ -1,5 +1,5 @@
 import { Client } from "pg";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 
@@ -13,7 +13,8 @@ export async function resetDb() {
   const c = new Client({ connectionString: ADMIN });
   await c.connect();
   await c.query("drop schema if exists public cascade; drop schema if exists app cascade; create schema public;");
-  await c.query(readFileSync(path.join(__dirname, "..", "migrations", "001_init.sql"), "utf8"));
+  for (const f of readdirSync(path.join(__dirname, "..", "migrations")).filter((f) => f.endsWith(".sql")).sort())
+    await c.query(readFileSync(path.join(__dirname, "..", "migrations", f), "utf8"));
   await c.end();
 }
 

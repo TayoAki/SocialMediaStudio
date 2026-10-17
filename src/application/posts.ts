@@ -5,6 +5,7 @@ import { audit, one, withScope, type Actor, type Tx } from "@/src/data/db";
 export const CreatePost = z.object({
   campaignId: z.string().uuid(),
   concept: z.string().trim().min(1).max(300),
+  proposedLocalTime: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/).optional(),
   variants: z.array(z.object({
     platform: z.enum(["instagram", "linkedin"]),
     caption: z.string().max(3000),
@@ -19,7 +20,7 @@ export async function createPostTx(tx: Tx, actor: Actor, ws: string, input: z.in
   const camp = await one(tx, "select brand_profile_version, status from campaigns where id = $1 and workspace_id = $2", [input.campaignId, ws]);
   if (camp.status !== "active") throw new AppError("FORBIDDEN", "Campaign is archived");
   const bp = await one(tx, "select max(version) as v from brand_profiles where workspace_id = $1", [ws]);
-  const post = await one(tx, "insert into posts (workspace_id, campaign_id, concept) values ($1,$2,$3) returning *", [ws, input.campaignId, input.concept]);
+  const post = await one(tx, "insert into posts (workspace_id, campaign_id, concept, proposed_local_time) values ($1,$2,$3,$4) returning *", [ws, input.campaignId, input.concept, input.proposedLocalTime ?? null]);
   const variantIds: string[] = [];
   for (const v of input.variants) {
     const pv = await one(tx, "insert into post_variants (workspace_id, post_id, platform) values ($1,$2,$3) returning id", [ws, post.id, v.platform]);
@@ -87,7 +88,7 @@ export async function listPosts(actor: Actor, ws: string) {
 export async function getVariant(actor: Actor, ws: string, variantId: string) {
   return withScope(actor, ws, async (tx) => {
     const v = await one(tx,
-      `select v.*, p.concept, p.campaign_id, r.caption, r.alt_text, r.asset_id, r.source_ids, r.ai_generated, r.brand_profile_version
+      `select v.*, p.concept, p.campaign_id, p.proposed_local_time, r.caption, r.alt_text, r.asset_id, r.source_ids, r.ai_generated, r.brand_profile_version
        from post_variants v join posts p on p.id = v.post_id join variant_revisions r on r.variant_id = v.id and r.revision = v.current_revision
        where v.id = $1 and v.workspace_id = $2`, [variantId, ws]);
     const revisions = (await tx.query("select revision, caption, ai_generated, created_at from variant_revisions where variant_id = $1 order by revision desc", [variantId])).rows;
